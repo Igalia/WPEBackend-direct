@@ -24,6 +24,7 @@ build_src = [
     'ipc.cpp',
     'NativeSurface.cpp',
     'Renderer.cpp',
+    'RendererBackend.cpp',
     'RendererHost.cpp',
     'wpebackend-direct.cpp']
 

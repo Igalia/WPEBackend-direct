@@ -1,21 +1,12 @@
 #include "Backend.h"
+#include "RendererBackend.h"
 #include "RendererHost.h"
 
 #include <cstring>
-#include <wpe/wpe-egl.h>
 
 namespace
 {
 auto s_backend = Backend::createBackend(960, 540);
-
-wpe_renderer_backend_egl_interface renderer_backend_egl_interface = {
-    +[](int) -> void* { return s_backend.get(); },
-    +[](void*) {},
-    +[](void* backend) -> EGLNativeDisplayType { return static_cast<Backend*>(backend)->getDisplay(); },
-    +[](void* backend) -> uint32_t { return static_cast<Backend*>(backend)->getPlatform(); },
-    nullptr,
-    nullptr,
-    nullptr};
 
 wpe_renderer_backend_egl_target_interface renderer_backend_egl_target_interface = {
     +[](wpe_renderer_backend_egl_target*, int) -> void* { return s_backend.get(); },
@@ -49,7 +40,7 @@ extern "C"
                 return RendererHost::getWPEInterface();
 
             if (std::strcmp(name, "_wpe_renderer_backend_egl_interface") == 0)
-                return &renderer_backend_egl_interface;
+                return RendererBackend::getWPEInterface();
 
             if (std::strcmp(name, "_wpe_renderer_backend_egl_target_interface") == 0)
                 return &renderer_backend_egl_target_interface;
