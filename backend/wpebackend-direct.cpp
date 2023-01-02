@@ -1,4 +1,5 @@
 #include "Backend.h"
+#include "RendererHost.h"
 
 #include <cstring>
 #include <wpe/wpe-egl.h>
@@ -6,14 +7,6 @@
 namespace
 {
 auto s_backend = Backend::createBackend(960, 540);
-
-wpe_renderer_host_interface renderer_host_interface = {+[]() -> void* { return nullptr; },
-                                                       +[](void*) {},
-                                                       +[](void*) -> int { return -1; },
-                                                       nullptr,
-                                                       nullptr,
-                                                       nullptr,
-                                                       nullptr};
 
 wpe_renderer_backend_egl_interface renderer_backend_egl_interface = {
     +[](int) -> void* { return s_backend.get(); },
@@ -53,7 +46,7 @@ extern "C"
     __attribute__((visibility("default"))) struct wpe_loader_interface _wpe_loader_interface = {
         +[](const char* name) -> void* {
             if (std::strcmp(name, "_wpe_renderer_host_interface") == 0)
-                return &renderer_host_interface;
+                return RendererHost::getWPEInterface();
 
             if (std::strcmp(name, "_wpe_renderer_backend_egl_interface") == 0)
                 return &renderer_backend_egl_interface;
