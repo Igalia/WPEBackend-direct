@@ -13,9 +13,15 @@ class NativeX11Surface final : public NativeSurface
     static std::unique_ptr<NativeSurface> createNativeX11Surface(unsigned int width, unsigned int height) noexcept;
     ~NativeX11Surface();
 
-    EGLenum getPlatform() const noexcept
+    EGLenum getPlatform() const noexcept override
     {
         return EGL_PLATFORM_X11_KHR;
+    }
+
+  protected:
+    void resizeUnderlyingWindow() noexcept override
+    {
+        XResizeWindow(static_cast<Display*>(m_display), reinterpret_cast<Window>(m_window), m_width, m_height);
     }
 
   private:
@@ -88,9 +94,15 @@ class NativeWaylandSurface final : public NativeSurface
     static std::unique_ptr<NativeSurface> createNativeWaylandSurface(unsigned int width, unsigned int height) noexcept;
     ~NativeWaylandSurface();
 
-    EGLenum getPlatform() const noexcept
+    EGLenum getPlatform() const noexcept override
     {
         return EGL_PLATFORM_WAYLAND_KHR;
+    }
+
+  protected:
+    void resizeUnderlyingWindow() noexcept override
+    {
+        wl_egl_window_resize(reinterpret_cast<wl_egl_window*>(m_window), m_width, m_height, 0, 0);
     }
 
   private:
@@ -225,4 +237,20 @@ std::unique_ptr<NativeSurface> NativeSurface::createNativeSurface(unsigned int w
 #endif // USE_X11
 
     return surface;
+}
+
+void NativeSurface::resize(unsigned int width, unsigned int height) noexcept
+{
+    if (width < 1)
+        width = 1;
+
+    if (height < 1)
+        height = 1;
+
+    if ((width != m_width) || (height != m_height))
+    {
+        m_width = width;
+        m_height = height;
+        resizeUnderlyingWindow();
+    }
 }

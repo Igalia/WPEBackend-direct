@@ -20,12 +20,11 @@ elif not x11_dep.found()
 endif
 
 build_src = [
-    'Backend.cpp',
     'ipc.cpp',
     'NativeSurface.cpp',
-    'Renderer.cpp',
     'RendererBackend.cpp',
     'RendererHost.cpp',
+    'RendererTarget.cpp',
     'wpebackend-direct.cpp']
 
 shared_library('wpebackend-direct', build_src,

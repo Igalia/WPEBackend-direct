@@ -36,6 +36,8 @@ class NativeSurface
 
     virtual EGLenum getPlatform() const noexcept = 0;
 
+    void resize(unsigned int width, unsigned int height) noexcept;
+
   protected:
     NativeSurface(unsigned int width, unsigned int height);
 
@@ -44,4 +46,6 @@ class NativeSurface
 
     EGLNativeDisplayType m_display = nullptr;
     EGLNativeWindowType m_window = nullptr;
+
+    virtual void resizeUnderlyingWindow() noexcept = 0;
 };
