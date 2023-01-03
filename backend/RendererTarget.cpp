@@ -38,7 +38,8 @@ void RendererTarget::init(RendererBackend* backend, uint32_t width, uint32_t hei
     }
 
     m_backend = backend;
-    m_nativeSurface = NativeSurface::createNativeSurface(width, height);
+    m_nativeSurface =
+        NativeSurface::createNativeSurface(m_backend->getPlatform(), m_backend->getDisplay(), width, height);
     if (!m_nativeSurface)
     {
         printf("Cannot create RendererTarget native surface\n");
@@ -46,7 +47,7 @@ void RendererTarget::init(RendererBackend* backend, uint32_t width, uint32_t hei
         return;
     }
 
-    m_eglDisplay = eglGetDisplay(m_nativeSurface->getDisplay());
+    m_eglDisplay = eglGetDisplay(m_backend->getDisplay());
     if (!m_eglDisplay)
     {
         printf("Cannot connect to any EGL display\n");

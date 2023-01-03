@@ -6,7 +6,7 @@
 class NativeSurface
 {
   public:
-    static std::unique_ptr<NativeSurface> createNativeSurface(unsigned int width, unsigned int height) noexcept;
+    static std::unique_ptr<NativeSurface> createNativeSurface(EGLenum platform, EGLNativeDisplayType display, unsigned int width, unsigned int height) noexcept;
     virtual ~NativeSurface() = default;
 
     NativeSurface(NativeSurface&&) = delete;
@@ -24,22 +24,15 @@ class NativeSurface
         return m_height;
     }
 
-    EGLNativeDisplayType getDisplay() const noexcept
-    {
-        return m_display;
-    }
-
     EGLNativeWindowType getWindow() const noexcept
     {
         return m_window;
     }
 
-    virtual EGLenum getPlatform() const noexcept = 0;
-
     void resize(unsigned int width, unsigned int height) noexcept;
 
   protected:
-    NativeSurface(unsigned int width, unsigned int height);
+    NativeSurface(EGLNativeDisplayType display, unsigned int width, unsigned int height);
 
     unsigned int m_width = 1;
     unsigned int m_height = 1;

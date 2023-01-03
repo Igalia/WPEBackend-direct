@@ -10,13 +10,9 @@ namespace
 class NativeX11Surface final : public NativeSurface
 {
   public:
-    static std::unique_ptr<NativeSurface> createNativeX11Surface(unsigned int width, unsigned int height) noexcept;
+    static std::unique_ptr<NativeSurface> createNativeX11Surface(EGLNativeDisplayType display, unsigned int width,
+                                                                 unsigned int height) noexcept;
     ~NativeX11Surface();
-
-    EGLenum getPlatform() const noexcept override
-    {
-        return EGL_PLATFORM_X11_KHR;
-    }
 
   protected:
     void resizeUnderlyingWindow() noexcept override
@@ -25,29 +21,24 @@ class NativeX11Surface final : public NativeSurface
     }
 
   private:
-    NativeX11Surface(unsigned int width, unsigned int height) : NativeSurface(width, height)
+    NativeX11Surface(EGLNativeDisplayType display, unsigned int width, unsigned int height)
+        : NativeSurface(display, width, height)
     {
     }
 };
 
-std::unique_ptr<NativeSurface> NativeX11Surface::createNativeX11Surface(unsigned int width,
+std::unique_ptr<NativeSurface> NativeX11Surface::createNativeX11Surface(EGLNativeDisplayType display,
+                                                                        unsigned int width,
                                                                         unsigned int height) noexcept
 {
-    Display* display = XOpenDisplay(nullptr);
-    if (!display)
-    {
-        printf("Cannot connect to X11 display\n");
-        return nullptr;
-    }
-
-    std::unique_ptr<NativeX11Surface> surface(new NativeX11Surface(width, height));
-    surface->m_display = display;
+    std::unique_ptr<NativeX11Surface> surface(new NativeX11Surface(display, width, height));
 
     int screen = DefaultScreen(display);
     XSetWindowAttributes attr = {};
     attr.background_pixel = BlackPixel(display, screen);
-    Window wnd = XCreateWindow(display, RootWindow(display, screen), 0, 0, surface->m_width, surface->m_height, 0, 0,
-                               InputOutput, DefaultVisual(display, screen), CWBackPixel, &attr);
+    Window wnd =
+        XCreateWindow(static_cast<Display*>(display), RootWindow(display, screen), 0, 0, surface->m_width,
+                      surface->m_height, 0, 0, InputOutput, DefaultVisual(display, screen), CWBackPixel, &attr);
     surface->m_window = reinterpret_cast<EGLNativeWindowType>(wnd);
     if (!surface->m_window)
     {
@@ -55,11 +46,11 @@ std::unique_ptr<NativeSurface> NativeX11Surface::createNativeX11Surface(unsigned
         return nullptr;
     }
 
-    Atom deleteAtom = XInternAtom(display, "WM_DELETE_WINDOW", False);
-    XSetWMProtocols(display, wnd, &deleteAtom, 1);
+    Atom deleteAtom = XInternAtom(static_cast<Display*>(display), "WM_DELETE_WINDOW", False);
+    XSetWMProtocols(static_cast<Display*>(display), wnd, &deleteAtom, 1);
 
-    XMapWindow(display, wnd);
-    XFlush(display);
+    XMapWindow(static_cast<Display*>(display), wnd);
+    XFlush(static_cast<Display*>(display));
 
     printf("Native X11 surface created (%dx%d)\n", surface->m_width, surface->m_height);
     return surface;
@@ -91,13 +82,9 @@ namespace
 class NativeWaylandSurface final : public NativeSurface
 {
   public:
-    static std::unique_ptr<NativeSurface> createNativeWaylandSurface(unsigned int width, unsigned int height) noexcept;
+    static std::unique_ptr<NativeSurface> createNativeWaylandSurface(EGLNativeDisplayType display, unsigned int width,
+                                                                     unsigned int height) noexcept;
     ~NativeWaylandSurface();
-
-    EGLenum getPlatform() const noexcept override
-    {
-        return EGL_PLATFORM_WAYLAND_KHR;
-    }
 
   protected:
     void resizeUnderlyingWindow() noexcept override
@@ -106,25 +93,19 @@ class NativeWaylandSurface final : public NativeSurface
     }
 
   private:
-    NativeWaylandSurface(unsigned int width, unsigned int height) : NativeSurface(width, height)
+    NativeWaylandSurface(EGLNativeDisplayType display, unsigned int width, unsigned int height)
+        : NativeSurface(display, width, height)
     {
     }
 
     wl_surface* m_wlSurface = nullptr;
 };
 
-std::unique_ptr<NativeSurface> NativeWaylandSurface::createNativeWaylandSurface(unsigned int width,
+std::unique_ptr<NativeSurface> NativeWaylandSurface::createNativeWaylandSurface(EGLNativeDisplayType display,
+                                                                                unsigned int width,
                                                                                 unsigned int height) noexcept
 {
-    wl_display* display = wl_display_connect(nullptr);
-    if (!display)
-    {
-        printf("Cannot connect to Wayland display\n");
-        return nullptr;
-    }
-
-    std::unique_ptr<NativeWaylandSurface> surface(new NativeWaylandSurface(width, height));
-    surface->m_display = display;
+    std::unique_ptr<NativeWaylandSurface> surface(new NativeWaylandSurface(display, width, height));
 
     struct WaylandGlobal
     {
@@ -153,9 +134,9 @@ std::unique_ptr<NativeSurface> NativeWaylandSurface::createNativeWaylandSurface(
             },
         .global_remove = +[](void*, wl_registry*, uint32_t) {}};
 
-    wl_registry* wlRegistry = wl_display_get_registry(display);
+    wl_registry* wlRegistry = wl_display_get_registry(static_cast<wl_display*>(display));
     wl_registry_add_listener(wlRegistry, &wlRegistryListener, &wlGlobal);
-    wl_display_roundtrip(display);
+    wl_display_roundtrip(static_cast<wl_display*>(display));
     wl_registry_destroy(wlRegistry);
 
     if (!wlGlobal.compositor || !wlGlobal.shell)
@@ -183,7 +164,7 @@ std::unique_ptr<NativeSurface> NativeWaylandSurface::createNativeWaylandSurface(
     wl_shell_surface_set_toplevel(wlShellSurface);
     wl_shell_surface_set_title(wlShellSurface, "wpebackend-direct");
 
-    wl_display_flush(display);
+    wl_display_flush(static_cast<wl_display*>(display));
     printf("Native Wayland surface created (%dx%d)\n", surface->m_width, surface->m_height);
     return surface;
 }
@@ -211,7 +192,7 @@ NativeWaylandSurface::~NativeWaylandSurface()
 } // namespace
 #endif // USE_WAYLAND
 
-NativeSurface::NativeSurface(unsigned int width, unsigned int height)
+NativeSurface::NativeSurface(EGLNativeDisplayType display, unsigned int width, unsigned int height) : m_display(display)
 {
     if (width > m_width)
         m_width = width;
@@ -220,23 +201,20 @@ NativeSurface::NativeSurface(unsigned int width, unsigned int height)
         m_height = height;
 }
 
-std::unique_ptr<NativeSurface> NativeSurface::createNativeSurface(unsigned int width, unsigned int height) noexcept
+std::unique_ptr<NativeSurface> NativeSurface::createNativeSurface(EGLenum platform, EGLNativeDisplayType display,
+                                                                  unsigned int width, unsigned int height) noexcept
 {
-    std::unique_ptr<NativeSurface> surface;
-
 #ifdef USE_WAYLAND
-    surface = NativeWaylandSurface::createNativeWaylandSurface(width, height);
-    if (surface)
-        return surface;
+    if (platform == EGL_PLATFORM_WAYLAND_KHR)
+        return NativeWaylandSurface::createNativeWaylandSurface(display, width, height);
 #endif // USE_WAYLAND
 
 #ifdef USE_X11
-    surface = NativeX11Surface::createNativeX11Surface(width, height);
-    if (surface)
-        return surface;
+    if (platform == EGL_PLATFORM_X11_KHR)
+        return NativeX11Surface::createNativeX11Surface(display, width, height);
 #endif // USE_X11
 
-    return surface;
+    return nullptr;
 }
 
 void NativeSurface::resize(unsigned int width, unsigned int height) noexcept
