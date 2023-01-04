@@ -20,13 +20,20 @@ elif not x11_dep.found()
 endif
 
 build_src = [
-    'ipc.cpp',
-    'NativeSurface.cpp',
-    'RendererBackend.cpp',
-    'RendererHost.cpp',
-    'RendererTarget.cpp',
-    'wpebackend-direct.cpp']
+    'application-side/RendererHost.cpp',
+    'application-side/RendererHostClient.cpp',
+    'application-side/ViewBackend.cpp',
+    'common/ipc.cpp',
+    'common/wpebackend-direct.cpp',
+    'wpewebprocess-side/NativeSurface.cpp',
+    'wpewebprocess-side/RendererBackendEGL.cpp',
+    'wpewebprocess-side/RendererBackendEGLTarget.cpp']
 
-shared_library('wpebackend-direct', build_src,
-               dependencies: build_deps,
-               cpp_args: build_args)
+wpebackend_lib = shared_library('wpebackend-direct', build_src,
+                                dependencies: build_deps,
+                                cpp_args: build_args)
+
+wpebackend_dep = declare_dependency(compile_args: build_args,
+                                    dependencies: build_deps,
+                                    include_directories: '.',
+                                    link_with: wpebackend_lib)

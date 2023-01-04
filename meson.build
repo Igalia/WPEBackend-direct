@@ -16,4 +16,4 @@ endif
 executable('webview', 'main.cpp',
            cpp_args: build_args,
            build_rpath: '$ORIGIN/backend',
-           dependencies: wpewebkit_dep)
+           dependencies: [wpewebkit_dep, wpebackend_dep])

@@ -1,39 +1,44 @@
-#include "RendererTarget.h"
+#include "RendererBackendEGLTarget.h"
 
 #include <stdio.h>
 
-wpe_renderer_backend_egl_target_interface* RendererTarget::getWPEInterface() noexcept
+wpe_renderer_backend_egl_target_interface* RendererBackendEGLTarget::getWPEInterface() noexcept
 {
     static wpe_renderer_backend_egl_target_interface s_interface = {
-        // void* create(wpe_renderer_backend_egl_target* target, int clientFd)
-        +[](wpe_renderer_backend_egl_target* target, int clientFd) -> void* {
-            return new RendererTarget(target, clientFd);
+        // void* create(wpe_renderer_backend_egl_target* target, int peerFd)
+        +[](wpe_renderer_backend_egl_target* target, int peerFd) -> void* {
+            return new RendererBackendEGLTarget(target, peerFd);
         },
         // void destroy(void* data)
-        +[](void* data) { delete static_cast<RendererTarget*>(data); },
+        +[](void* data) { delete static_cast<RendererBackendEGLTarget*>(data); },
         // void initialize(void* targetData, void* backendData, uint32_t width, uint32_t height)
         +[](void* targetData, void* backendData, uint32_t width, uint32_t height) {
-            static_cast<RendererTarget*>(targetData)->init(static_cast<RendererBackend*>(backendData), width, height);
+            static_cast<RendererBackendEGLTarget*>(targetData)
+                ->init(static_cast<RendererBackendEGL*>(backendData), width, height);
         },
         // EGLNativeWindowType get_native_window(void* data)
-        +[](void* data) -> EGLNativeWindowType { return static_cast<RendererTarget*>(data)->getNativeWindow(); },
+        +[](void* data) -> EGLNativeWindowType {
+            return static_cast<RendererBackendEGLTarget*>(data)->getNativeWindow();
+        },
         // void resize(void* data, uint32_t width, uint32_t height)
-        +[](void* data, uint32_t width, uint32_t height) { static_cast<RendererTarget*>(data)->resize(width, height); },
+        +[](void* data, uint32_t width, uint32_t height) {
+            static_cast<RendererBackendEGLTarget*>(data)->resize(width, height);
+        },
         // void frame_will_render(void* data)
-        +[](void* data) { static_cast<RendererTarget*>(data)->frameWillRender(); },
+        +[](void* data) { static_cast<RendererBackendEGLTarget*>(data)->frameWillRender(); },
         // void frame_rendered(void* data)
-        +[](void* data) { static_cast<RendererTarget*>(data)->frameRendered(); },
+        +[](void* data) { static_cast<RendererBackendEGLTarget*>(data)->frameRendered(); },
         // void deinitialize(void* data)
-        +[](void* data) { static_cast<RendererTarget*>(data)->shut(); }, nullptr, nullptr, nullptr};
+        +[](void* data) { static_cast<RendererBackendEGLTarget*>(data)->shut(); }, nullptr, nullptr, nullptr};
 
     return &s_interface;
 }
 
-void RendererTarget::init(RendererBackend* backend, uint32_t width, uint32_t height) noexcept
+void RendererBackendEGLTarget::init(RendererBackendEGL* backend, uint32_t width, uint32_t height) noexcept
 {
     if (m_backend || m_nativeSurface)
     {
-        printf("RendererTarget is already initialized\n");
+        printf("RendererBackendEGLTarget is already initialized\n");
         return;
     }
 
@@ -42,7 +47,7 @@ void RendererTarget::init(RendererBackend* backend, uint32_t width, uint32_t hei
         NativeSurface::createNativeSurface(m_backend->getPlatform(), m_backend->getDisplay(), width, height);
     if (!m_nativeSurface)
     {
-        printf("Cannot create RendererTarget native surface\n");
+        printf("Cannot create RendererBackendEGLTarget native surface\n");
         shut();
         return;
     }
@@ -100,10 +105,10 @@ void RendererTarget::init(RendererBackend* backend, uint32_t width, uint32_t hei
         return;
     }
 
-    printf("RendererTarget initialized\n");
+    printf("RendererBackendEGLTarget initialized\n");
 }
 
-void RendererTarget::shut() noexcept
+void RendererBackendEGLTarget::shut() noexcept
 {
     if (m_eglDisplay)
     {
@@ -129,22 +134,24 @@ void RendererTarget::shut() noexcept
     m_nativeSurface = nullptr;
 }
 
-void RendererTarget::frameWillRender() const noexcept
+void RendererBackendEGLTarget::frameWillRender() const noexcept
 {
     if (m_eglDisplay)
         eglMakeCurrent(m_eglDisplay, m_eglSurface, m_eglSurface, m_eglContext);
 }
 
-void RendererTarget::frameRendered() const noexcept
+void RendererBackendEGLTarget::frameRendered() const noexcept
 {
     if (m_eglDisplay)
     {
-        // TODO
+        glFlush();
         eglSwapBuffers(m_eglDisplay, m_eglSurface);
     }
+
+    wpe_renderer_backend_egl_target_dispatch_frame_complete(m_wpeTarget);
 }
 
-void RendererTarget::handleMessage(const ipc::Message& /*message*/) noexcept
+void RendererBackendEGLTarget::handleMessage(IPC::Channel& /*channel*/, const IPC::Message& /*message*/) noexcept
 {
-    // Renderer messages received on WPEWebProcess side from the client process side
+    // Messages received on WPEWebProcess side from ViewBackend on application process side
 }

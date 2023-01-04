@@ -1,13 +1,13 @@
 #pragma once
 
-#include "ipc.h"
+#include "RendererHostClient.h"
 
+#include <vector>
 #include <wpe/wpe.h>
 
-class RendererHost final : private ipc::MessageHandler
+class RendererHost final
 {
   public:
-    static RendererHost& getSingleton() noexcept;
     static wpe_renderer_host_interface* getWPEInterface() noexcept;
 
     ~RendererHost() = default;
@@ -17,11 +17,10 @@ class RendererHost final : private ipc::MessageHandler
     RendererHost(const RendererHost&) = delete;
     RendererHost& operator=(const RendererHost&) = delete;
 
-  private:
-    ipc::Server m_ipcServer;
-    RendererHost() noexcept : m_ipcServer(*this)
-    {
-    }
+    RendererHostClient& addClient() noexcept;
+    void removeClient(const RendererHostClient* client) noexcept;
 
-    void handleMessage(const ipc::Message& message) noexcept override;
+  private:
+    RendererHost() = default;
+    std::vector<RendererHostClient> m_clients;
 };

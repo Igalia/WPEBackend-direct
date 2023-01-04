@@ -1,4 +1,5 @@
 #include <wpe/webkit.h>
+#include <wpebackend-direct.h>
 
 int main(int /*argc*/, const char* /*argv*/[])
 {
@@ -12,18 +13,7 @@ int main(int /*argc*/, const char* /*argv*/[])
     auto* wkWebContext = webkit_web_context_new_with_website_data_manager(wkManager);
     g_object_unref(wkManager);
 
-    static wpe_view_backend_interface s_viewBackendInterface = {
-        +[](void*, wpe_view_backend*) -> void* { return nullptr; },
-        +[](void*) {},
-        +[](void*) {},
-        +[](void*) -> int { return -1; },
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr};
-
-    auto* wpeViewBackend = wpe_view_backend_create_with_backend_interface(&s_viewBackendInterface, nullptr);
-    auto* wkBackend = webkit_web_view_backend_new(wpeViewBackend, nullptr, nullptr);
+    auto* wkBackend = webkit_web_view_backend_new(wpe_direct_view_backend_create(), nullptr, nullptr);
     auto* wkWebView = webkit_web_view_new_with_context(wkBackend, wkWebContext);
     g_object_unref(wkWebContext);
 

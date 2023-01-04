@@ -1,4 +1,4 @@
-#include "RendererBackend.h"
+#include "RendererBackendEGL.h"
 
 #include <stdio.h>
 
@@ -10,23 +10,23 @@
 #include <X11/Xlib.h>
 #endif // USE_X11
 
-wpe_renderer_backend_egl_interface* RendererBackend::getWPEInterface() noexcept
+wpe_renderer_backend_egl_interface* RendererBackendEGL::getWPEInterface() noexcept
 {
     static wpe_renderer_backend_egl_interface s_interface = {
-        // void* create(int clientFd)
-        +[](int clientFd) -> void* { return new RendererBackend(clientFd); },
+        // void* create(int peerFd)
+        +[](int peerFd) -> void* { return new RendererBackendEGL(peerFd); },
         // void destroy(void* data)
-        +[](void* data) { delete static_cast<RendererBackend*>(data); },
+        +[](void* data) { delete static_cast<RendererBackendEGL*>(data); },
         // EGLNativeDisplayType get_native_display(void* data)
-        +[](void* data) -> EGLNativeDisplayType { return static_cast<RendererBackend*>(data)->getDisplay(); },
+        +[](void* data) -> EGLNativeDisplayType { return static_cast<RendererBackendEGL*>(data)->getDisplay(); },
         // uint32_t get_platform(void* data)
-        +[](void* data) -> uint32_t { return static_cast<RendererBackend*>(data)->getPlatform(); }, nullptr, nullptr,
+        +[](void* data) -> uint32_t { return static_cast<RendererBackendEGL*>(data)->getPlatform(); }, nullptr, nullptr,
         nullptr};
 
     return &s_interface;
 }
 
-RendererBackend::RendererBackend(int clientFd) noexcept : m_ipcClient(*this, clientFd)
+RendererBackendEGL::RendererBackendEGL(int rendererHostClientFd) noexcept : m_ipcChannel(*this, rendererHostClientFd)
 {
 #ifdef USE_WAYLAND
     wl_display* waylandDisplay = wl_display_connect(nullptr);
@@ -50,7 +50,7 @@ RendererBackend::RendererBackend(int clientFd) noexcept : m_ipcClient(*this, cli
 #endif // USE_X11
 }
 
-RendererBackend::~RendererBackend()
+RendererBackendEGL::~RendererBackendEGL()
 {
     if (m_display)
     {
@@ -65,11 +65,11 @@ RendererBackend::~RendererBackend()
 #endif // USE_X11
     }
 
-    m_display = EGL_DEFAULT_DISPLAY;
-    m_platform = EGL_PLATFORM_SURFACELESS_MESA;
+    m_display = EGL_NO_DISPLAY;
+    m_platform = 0;
 }
 
-void RendererBackend::handleMessage(const ipc::Message& /*message*/) noexcept
+void RendererBackendEGL::handleMessage(IPC::Channel& /*channel*/, const IPC::Message& /*message*/) noexcept
 {
-    // Renderer messages received on WPEWebProcess side from the client process side
+    // Messages received on WPEWebProcess side from RendererHostClient on application process side
 }
