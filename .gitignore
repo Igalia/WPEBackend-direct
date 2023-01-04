@@ -1,3 +1,6 @@
+# Project artifacts
+/scripts/webkit-2.38.2/
+
 # Build artifacts
 build*/
 obj/
