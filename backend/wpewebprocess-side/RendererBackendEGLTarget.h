@@ -48,8 +48,4 @@ class RendererBackendEGLTarget final : private IPC::MessageHandler
 
     RendererBackendEGL* m_backend = nullptr;
     std::unique_ptr<NativeSurface> m_nativeSurface;
-
-    EGLDisplay m_eglDisplay = EGL_NO_DISPLAY;
-    EGLContext m_eglContext = EGL_NO_CONTEXT;
-    EGLSurface m_eglSurface = EGL_NO_SURFACE;
 };

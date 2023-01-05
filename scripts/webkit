@@ -10,6 +10,11 @@ readonly WPEWEBKIT=wpewebkit-2.38.2
 
 while [ $# -gt 0 ]; do
     case "$1" in
+    --debug)
+        MESON_BUILD_TYPE=debug
+        CMAKE_BUILD_TYPE=Debug
+        ;;
+
     --release)
         MESON_BUILD_TYPE=release
         CMAKE_BUILD_TYPE=Release
@@ -50,7 +55,7 @@ function install_build_deps
         libgl1-mesa-dri patchelf unifdef ruby-dev
 }
 
-function patch_webkit
+function patch_webkit_enable_dev_mode_without_fdo_backend
 {
     patch -d $WPEWEBKIT -f -l -p1 <<"EOF"
 From 9f84ea8ce4e67d635d695a1fb0e94e58e76b9948 Mon Sep 17 00:00:00 2001
@@ -63,8 +68,8 @@ Subject: [PATCH] Enable developer mode without FDO backend
  Source/WebCore/PlatformWPE.cmake   |  6 ------
  Source/cmake/GStreamerChecks.cmake |  8 +-------
  Source/cmake/OptionsWPE.cmake      |  4 ----
- Tools/PlatformWPE.cmake            | 11 -----------
- 5 files changed, 1 insertion(+), 32 deletions(-)
+ Tools/PlatformWPE.cmake            | 13 +------------
+ 5 files changed, 2 insertions(+), 33 deletions(-)
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 index 8bb7d65f..5712bc5b 100644
@@ -133,10 +138,12 @@ index 0dc0057f..245394d0 100644
  if (ENABLE_WEBXR)
      if (NOT ENABLE_GAMEPAD)
 diff --git a/Tools/PlatformWPE.cmake b/Tools/PlatformWPE.cmake
-index 888e9113..5ab948ca 100644
+index 888e9113..cc583507 100644
 --- a/Tools/PlatformWPE.cmake
 +++ b/Tools/PlatformWPE.cmake
-@@ -2,17 +2,6 @@ if (DEVELOPER_MODE OR ENABLE_MINIBROWSER)
+@@ -1,18 +1,7 @@
+-if (DEVELOPER_MODE OR ENABLE_MINIBROWSER)
++if (ENABLE_MINIBROWSER)
      add_subdirectory(wpe/backends)
  endif ()
 
@@ -157,7 +164,10 @@ index 888e9113..5ab948ca 100644
 --
 2.34.1
 EOF
+}
 
+function patch_webkit_enable_websecurity
+{
     patch -d $WPEWEBKIT -f -l -p1 <<"EOF"
 From 55a8070fbbfdac663b0c5b64582fb9c31d9279e0 Mon Sep 17 00:00:00 2001
 From: Przemyslaw Gorszkowski <pgorszkowski@igalia.com>
@@ -310,6 +320,61 @@ index e224df80..9e8d78a2 100644
 EOF
 }
 
+function patch_webkit_fix_webgl_compositing
+{
+    patch -d $WPEWEBKIT -f -l -p1 <<"EOF"
+From 27ae138797fe25edf333771c440cc87bc7e19fcc Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Lo=C3=AFc=20Le=20Page?= <llepage@igalia.com>
+Date: Fri, 6 Jan 2023 20:22:50 +0100
+Subject: [PATCH] [WPE][WebGL][Canvas][Compositing] Fix partially rendered
+ WebGL canvas compositing issue
+
+When rendering heavy 3D scenes in a WebGL canvas using the WPE EGL
+renderer, the compositor may use the element render target texture
+BEFORE all the WebGL commands are correctly executed by the GPU.
+
+Then, on most complex frames, the canvas appears totally blank or
+partially rendered. This patch ensures that all GL commands have
+finished executing in the WebGL canvas context before passing the
+render target texture to the compositor.
+---
+.../graphics/opengl/GraphicsContextGLOpenGL.cpp  | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/Source/WebCore/platform/graphics/opengl/GraphicsContextGLOpenGL.cpp b/Source/WebCore/platform/graphics/opengl/GraphicsContextGLOpenGL.cpp
+index 199ceffa..259ccfc1 100644
+--- a/Source/WebCore/platform/graphics/opengl/GraphicsContextGLOpenGL.cpp
++++ b/Source/WebCore/platform/graphics/opengl/GraphicsContextGLOpenGL.cpp
+@@ -399,9 +399,23 @@ void GraphicsContextGLOpenGL::prepareTexture()
+ #if USE(COORDINATED_GRAPHICS)
+     std::swap(m_texture, m_compositorTexture);
+     std::swap(m_texture, m_intermediateTexture);
++
++    // glFramebufferTexture2D call doesn't imply any kind of synchronization,
++    // so we must ensure that all current context drawing has finished before
++    // passing the m_compositorTexture to the compositor thread. Else the
++    // composited texture may appear totally blank or partially rendered, in
++    // particular for WebGL canvas.
++#if HAVE(OPENGL_4) || HAVE(OPENGL_ES_3)
++    GLsync sync = ::glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
++    ::glClientWaitSync(sync, GL_SYNC_FLUSH_COMMANDS_BIT, GL_TIMEOUT_IGNORED);
++    ::glDeleteSync(sync);
++#else
++    ::glFinish();
++#endif
++
+     ::glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
+     ::glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D, m_texture, 0);
+-    glFlush();
++    ::glFlush();
+
+     ASSERT(m_state.boundReadFBO == m_state.boundDrawFBO);
+     if (m_state.boundDrawFBO != m_fbo)
+--
+2.34.1
+EOF
+}
+
 function prepare_sources
 {
     mkdir -p $BASE_DIR/sources
@@ -324,7 +389,9 @@ function prepare_sources
             tar -xf $SRC_PACKAGE.tar.xz
 
             if [ "$SRC_PACKAGE" = "$WPEWEBKIT" ]; then
-                patch_webkit
+                patch_webkit_enable_dev_mode_without_fdo_backend
+                patch_webkit_enable_websecurity
+                patch_webkit_fix_webgl_compositing
             fi
         fi
     done
@@ -343,6 +410,11 @@ function build_libwpe
 
 function build_wpewebkit
 {
+    local DEV_MODE=OFF
+    if [ "$CMAKE_BUILD_TYPE" != "Release" ]; then
+        DEV_MODE=ON
+    fi
+
     cd $BASE_DIR/sources/$WPEWEBKIT
     if [ ! -d build ]; then
         cmake -S. -Bbuild -GNinja -DCMAKE_EXPORT_COMPILE_COMMANDS=TRUE \
@@ -351,7 +423,8 @@ function build_wpewebkit
             -DENABLE_GAMEPAD=OFF -DENABLE_INTROSPECTION=OFF -DENABLE_JOURNALD_LOG=OFF \
             -DENABLE_OFFSCREEN_CANVAS=ON -DENABLE_OFFSCREEN_CANVAS_IN_WORKERS=ON \
             -DENABLE_PDFJS=OFF -DENABLE_WEBDRIVER=OFF -DUSE_SOUP2=ON -DUSE_AVIF=OFF \
-            -DDEVELOPER_MODE=ON -DENABLE_WPE_QT_API=OFF -DENABLE_COG=OFF -DENABLE_MINIBROWSER=OFF
+            -DDEVELOPER_MODE=$DEV_MODE -DENABLE_WPE_QT_API=OFF -DENABLE_COG=OFF -DENABLE_MINIBROWSER=OFF \
+            -DENABLE_API_TESTS=OFF
     fi
 
     ninja -C build install
@@ -361,6 +434,7 @@ function build_wpewebkit
     patchelf --set-rpath '$ORIGIN/x86_64-linux-gnu' --force-rpath $BASE_DIR/dist/lib/libWPEWebKit-1.0.so
 
     if [ "$CMAKE_BUILD_TYPE" != "Release" ]; then
+        gdb-add-index $BASE_DIR/dist/lib/libWPEWebKit-1.0.so
         cp -fL $BASE_DIR/dist/lib/libWPEWebKit-1.0.so $BASE_DIR/dist/lib/libWPEWebKit-1.0.so.debug
         strip --strip-debug $BASE_DIR/dist/lib/libWPEWebKit-1.0.so
     fi
@@ -382,7 +456,7 @@ elif [ "$BUILD_DEPS" = "true" ]; then
 fi
 
 export WEBKIT_INSPECTOR_SERVER=127.0.0.1:8787
-cd $BASE_DIR/dist
+cd $BASE_DIR/../..
 $SHELL
 
 exit 0

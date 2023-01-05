@@ -1,6 +1,6 @@
 #include "NativeSurface.h"
 
-#include <stdio.h>
+#include <glib.h>
 
 #ifdef USE_X11
 #include <X11/Xlib.h>
@@ -42,7 +42,7 @@ std::unique_ptr<NativeSurface> NativeX11Surface::createNativeX11Surface(EGLNativ
     surface->m_window = reinterpret_cast<EGLNativeWindowType>(wnd);
     if (!surface->m_window)
     {
-        printf("Cannot create X11 window for the native surface\n");
+        g_critical("Cannot create X11 window for the native surface");
         return nullptr;
     }
 
@@ -52,7 +52,7 @@ std::unique_ptr<NativeSurface> NativeX11Surface::createNativeX11Surface(EGLNativ
     XMapWindow(static_cast<Display*>(display), wnd);
     XFlush(static_cast<Display*>(display));
 
-    printf("Native X11 surface created (%dx%d)\n", surface->m_width, surface->m_height);
+    g_message("Native X11 surface created (%dx%d)", surface->m_width, surface->m_height);
     return surface;
 }
 
@@ -141,14 +141,14 @@ std::unique_ptr<NativeSurface> NativeWaylandSurface::createNativeWaylandSurface(
 
     if (!wlGlobal.compositor || !wlGlobal.shell)
     {
-        printf("Cannot fetch Wayland compositor and/or shell\n");
+        g_critical("Cannot fetch Wayland compositor and/or shell");
         return nullptr;
     }
 
     surface->m_wlSurface = wl_compositor_create_surface(wlGlobal.compositor);
     if (!surface->m_wlSurface)
     {
-        printf("Cannot create Wayland native surface\n");
+        g_critical("Cannot create Wayland native surface");
         return nullptr;
     }
 
@@ -156,7 +156,7 @@ std::unique_ptr<NativeSurface> NativeWaylandSurface::createNativeWaylandSurface(
         wl_egl_window_create(surface->m_wlSurface, surface->m_width, surface->m_height));
     if (!surface->m_window)
     {
-        printf("Cannot create Wayland EGL window for the native surface\n");
+        g_critical("Cannot create Wayland EGL window for the native surface");
         return nullptr;
     }
 
@@ -165,7 +165,7 @@ std::unique_ptr<NativeSurface> NativeWaylandSurface::createNativeWaylandSurface(
     wl_shell_surface_set_title(wlShellSurface, "wpebackend-direct");
 
     wl_display_flush(static_cast<wl_display*>(display));
-    printf("Native Wayland surface created (%dx%d)\n", surface->m_width, surface->m_height);
+    g_message("Native Wayland surface created (%dx%d)", surface->m_width, surface->m_height);
     return surface;
 }
 

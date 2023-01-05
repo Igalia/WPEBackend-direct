@@ -1,7 +1,5 @@
 #include "RendererBackendEGL.h"
 
-#include <stdio.h>
-
 #ifdef USE_WAYLAND
 #include <wayland-client.h>
 #endif // USE_WAYLAND
@@ -34,7 +32,7 @@ RendererBackendEGL::RendererBackendEGL(int rendererHostClientFd) noexcept : m_ip
     {
         m_display = waylandDisplay;
         m_platform = EGL_PLATFORM_WAYLAND_KHR;
-        printf("Using Wayland platform\n");
+        g_message("Using Wayland platform");
         return;
     }
 #endif // USE_WAYLAND
@@ -45,7 +43,7 @@ RendererBackendEGL::RendererBackendEGL(int rendererHostClientFd) noexcept : m_ip
     {
         m_display = x11Display;
         m_platform = EGL_PLATFORM_X11_KHR;
-        printf("Using X11 platform\n");
+        g_message("Using X11 platform");
     }
 #endif // USE_X11
 }

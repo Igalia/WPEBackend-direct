@@ -1,7 +1,7 @@
 build_args = ['-DEGL_NO_PLATFORM_SPECIFIC_TYPES']
 
-wpe_dep = dependency('wpe-1.0', version: '>= 1.12', required: true)
-epoxy_dep = dependency('epoxy', version: '>= 1.5', required: true)
+wpe_dep = dependency('wpe-1.0', version: '>=1.12', required: true)
+epoxy_dep = dependency('epoxy', version: '>=1.5', required: true)
 gio_dep = dependency('gio-2.0', version: '>=2.6', required: true)
 build_deps = [wpe_dep, epoxy_dep, gio_dep]
 
@@ -31,9 +31,16 @@ build_src = [
 
 wpebackend_lib = shared_library('wpebackend-direct', build_src,
                                 dependencies: build_deps,
-                                cpp_args: build_args)
+                                cpp_args: build_args,
+                                gnu_symbol_visibility: 'inlineshidden',
+                                install: true)
 
-wpebackend_dep = declare_dependency(compile_args: build_args,
-                                    dependencies: build_deps,
-                                    include_directories: '.',
+install_headers('wpebackend-direct.h')
+pkg = import('pkgconfig')
+pkg.generate(wpebackend_lib,
+             description: 'Direct rendering backend for wpe-webkit',
+             requires: wpe_dep)
+
+wpebackend_dep = declare_dependency(include_directories: '.',
+                                    dependencies: wpe_dep,
                                     link_with: wpebackend_lib)

@@ -36,7 +36,7 @@
 
 extern "C"
 {
-    __attribute__((visibility("default"))) struct wpe_loader_interface _wpe_loader_interface = {
+    __attribute__((visibility("default"))) wpe_loader_interface _wpe_loader_interface = {
         +[](const char* name) -> void* {
             if (std::strcmp(name, "_wpe_renderer_host_interface") == 0)
                 return RendererHost::getWPEInterface();
@@ -66,7 +66,22 @@ extern "C"
         nullptr, nullptr, nullptr, nullptr};
 }
 
-__attribute__((visibility("default"))) wpe_view_backend* wpe_direct_view_backend_create()
+__attribute__((visibility("default"))) wpe_direct_view_backend* wpe_direct_view_backend_create(
+    wpe_direct_on_frame_available_callback cb, void* user_data, uint32_t width, uint32_t height)
 {
-    return wpe_view_backend_create_with_backend_interface(ViewBackend::getWPEInterface(), nullptr);
+    ViewBackend::ViewParams viewParams = {cb, user_data, width, height};
+    wpe_view_backend_create_with_backend_interface(ViewBackend::getWPEInterface(), &viewParams);
+    return static_cast<wpe_direct_view_backend*>(viewParams.userData);
+}
+
+__attribute__((visibility("default"))) wpe_view_backend* wpe_direct_view_backend_get_wpe_backend(
+    wpe_direct_view_backend* direct_backend)
+{
+    return static_cast<ViewBackend*>(direct_backend)->getWPEViewBackend();
+}
+
+__attribute__((visibility("default"))) void wpe_direct_view_backend_dispatch_frame_complete(
+    wpe_direct_view_backend* direct_backend)
+{
+    static_cast<ViewBackend*>(direct_backend)->frameComplete();
 }

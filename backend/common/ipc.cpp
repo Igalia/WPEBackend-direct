@@ -1,7 +1,6 @@
 #include "ipc.h"
 
 #include <cassert>
-#include <stdio.h>
 #include <sys/socket.h>
 
 using namespace IPC;
@@ -11,7 +10,7 @@ Channel::Channel(MessageHandler& handler) noexcept : m_handler(handler)
     int sockets[2] = {};
     if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, sockets) != 0)
     {
-        printf("Cannot create Unix sockets pair for IPC channel\n");
+        g_critical("Cannot create Unix sockets pair for IPC channel");
         return;
     }
 
@@ -25,7 +24,7 @@ Channel::Channel(MessageHandler& handler, int peerFd) noexcept : m_handler(handl
 {
     if (peerFd == -1)
     {
-        printf("Invalid peer file descriptor for IPC channel\n");
+        g_critical("Invalid peer file descriptor for IPC channel");
         return;
     }
 
@@ -111,7 +110,7 @@ bool Channel::configureLocalSocketFromFd(int localFd) noexcept
     if (!m_localSocket)
     {
         close(localFd);
-        printf("Cannot create local socket for IPC channel\n");
+        g_critical("Cannot create local socket for IPC channel");
         return false;
     }
 
@@ -121,7 +120,7 @@ bool Channel::configureLocalSocketFromFd(int localFd) noexcept
         g_object_unref(m_localSocket);
         m_localSocket = nullptr;
 
-        printf("Cannot create socket source for IPC channel\n");
+        g_critical("Cannot create socket source for IPC channel");
         return false;
     }
 
@@ -159,7 +158,7 @@ bool Channel::configureLocalSocketFromFd(int localFd) noexcept
         g_object_unref(m_localSocket);
         m_localSocket = nullptr;
 
-        printf("Cannot attach socket source for IPC channel\n");
+        g_critical("Cannot attach socket source for IPC channel");
         return false;
     }
 
