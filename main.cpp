@@ -53,9 +53,7 @@ WebKitWebView* createWebView()
 
     auto* settings = webkit_web_view_get_settings(wkWebView);
     webkit_settings_set_enable_webaudio(settings, FALSE);
-#ifdef HAS_WEB_SECURITY
-    webkit_settings_set_enable_websecurity(settings, FALSE);
-#endif // HAS_WEB_SECURITY
+    webkit_settings_set_disable_web_security(settings, TRUE);
 
     return wkWebView;
 }

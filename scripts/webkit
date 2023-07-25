@@ -4,11 +4,11 @@ MESON_BUILD_TYPE=debugoptimized
 CMAKE_BUILD_TYPE=RelWithDebInfo
 BUILD_DEPS=false
 
-readonly BASE_DIR=$(dirname $(readlink -en $0))/webkit-2.38
+readonly BASE_DIR=$(dirname $(readlink -en $0))/webkit-2.40
 readonly INSTALL_PREFIX=$BASE_DIR/dist
 
 readonly LIBWPE=libwpe-1.14.1
-readonly WPEWEBKIT=wpewebkit-2.38.6
+readonly WPEWEBKIT=wpewebkit-2.40.4
 
 while [ $# -gt 0 ]; do
     case "$1" in

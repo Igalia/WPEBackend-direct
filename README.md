@@ -16,7 +16,7 @@ direct view of the compositor output.
 ## Build dependencies
 
 To build the backend you will need the development dependencies for
-libWPEWebKit-1.0 (minimum version 2.38) and libwpe-1.0 (minimum version 1.14).
+libWPEWebKit-1.0 (minimum version 2.40) and libwpe-1.0 (minimum version 1.14).
 
 You can install those dependencies from your OS packaging system or you can
 build them yourself (preferred way as it would include specific patches).
@@ -81,7 +81,7 @@ the `webview` sample application and then connect your debugger to the
 *WPEWebProcess*.
 
 If you have built *libWPEWebKit-1.0.so* in debug mode, you may need to replace
-*scripts/webkit-2.38/dist/lib/libWPEWebKit-1.0.so.3.18.9* by
+*scripts/webkit-2.40/dist/lib/libWPEWebKit-1.0.so.3.xx.x* by
 *libWPEWebKit-1.0.so.debug* as the *scripts/webkit* script strips the library
 debug symbols by default to prevent huge loading times when not needing to
 directly debug the WPEWebkit library.
