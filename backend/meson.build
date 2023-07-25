@@ -1,6 +1,6 @@
 build_args = ['-DEGL_NO_PLATFORM_SPECIFIC_TYPES']
 
-wpe_dep = dependency('wpe-1.0', version: '>=1.12', required: true)
+wpe_dep = dependency('wpe-1.0', version: '>=1.14', required: true)
 epoxy_dep = dependency('epoxy', version: '>=1.5', required: true)
 gio_dep = dependency('gio-2.0', version: '>=2.6', required: true)
 build_deps = [wpe_dep, epoxy_dep, gio_dep]

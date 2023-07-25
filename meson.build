@@ -7,7 +7,7 @@ project('wpebackend-direct', 'cpp',
 subdir('backend')
 
 build_args = []
-wpewebkit_dep = dependency('wpe-webkit-1.0', version: '>=2.36', required: true)
+wpewebkit_dep = dependency('wpe-webkit-1.0', version: '>=2.38', required: true)
 cc = meson.get_compiler('cpp')
 if cc.has_function('webkit_settings_set_enable_websecurity', dependencies: wpewebkit_dep, prefix: '#include <wpe/webkit.h>')
     build_args += '-DHAS_WEB_SECURITY'

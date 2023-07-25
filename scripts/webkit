@@ -4,9 +4,11 @@ MESON_BUILD_TYPE=debugoptimized
 CMAKE_BUILD_TYPE=RelWithDebInfo
 BUILD_DEPS=false
 
-readonly BASE_DIR=$(readlink -en `dirname $0`)/webkit-2.38.3
-readonly LIBWPE=libwpe-1.14.0
-readonly WPEWEBKIT=wpewebkit-2.38.3
+readonly BASE_DIR=$(dirname $(readlink -en $0))/webkit-2.38
+readonly INSTALL_PREFIX=$BASE_DIR/dist
+
+readonly LIBWPE=libwpe-1.14.1
+readonly WPEWEBKIT=wpewebkit-2.38.6
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -35,7 +37,7 @@ typeset -r MESON_BUILD_TYPE
 typeset -r CMAKE_BUILD_TYPE
 typeset -r BUILD_DEPS
 
-readonly PKG_PATH=$BASE_DIR/dist/lib/x86_64-linux-gnu/pkgconfig:$BASE_DIR/dist/lib/pkgconfig
+readonly PKG_PATH=$INSTALL_PREFIX/lib/x86_64-linux-gnu/pkgconfig:$INSTALL_PREFIX/lib/pkgconfig
 if [ -n "$PKG_CONFIG_PATH" ]; then
     export PKG_CONFIG_PATH=$PKG_PATH:$PKG_CONFIG_PATH
 else
@@ -50,117 +52,40 @@ function install_build_deps
         libicu-dev libjpeg-dev liblcms2-dev libopenjp2-7-dev libsoup2.4-dev libsqlite3-dev libsystemd-dev \
         libtasn1-6-dev libwayland-dev libwebp-dev libwoff-dev libxslt1-dev wayland-protocols libglib2.0-dev \
         libgtk-3-dev libfontconfig1-dev libfreetype6-dev libhyphen-dev libmanette-0.2-dev libnotify-dev libxml2-dev \
-        libsoup-3.0-dev libgudev-1.0-dev bison flex libpng-dev libxt-dev libenchant-2-dev libsecret-1-dev libgl-dev \
+        libgudev-1.0-dev bison flex libpng-dev libxt-dev libenchant-2-dev libsecret-1-dev libgl-dev \
         libgles-dev libjavascriptcoregtk-4.1-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-gl \
-        libgl1-mesa-dri patchelf unifdef ruby-dev
+        libgl1-mesa-dri patchelf unifdef ruby-dev libgstreamer-plugins-bad1.0-dev
 }
 
-function patch_webkit_enable_dev_mode_without_fdo_backend
+function patch_webkit_wait_for_wpewebprocess
 {
     patch -d $WPEWEBKIT -f -l -p1 <<"EOF"
-From 9f84ea8ce4e67d635d695a1fb0e94e58e76b9948 Mon Sep 17 00:00:00 2001
+From f6c5fa2ca7ebbc82669e120101ac066b528d9406 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Lo=C3=AFc=20Le=20Page?= <llepage@igalia.com>
-Date: Wed, 4 Jan 2023 12:13:36 +0100
-Subject: [PATCH] Enable developer mode without FDO backend
+Date: Mon, 17 Apr 2023 17:45:25 +0200
+Subject: [PATCH] Wait for WPEWebProcess without developer mode
 
 ---
- CMakeLists.txt                     |  4 ----
- Source/WebCore/PlatformWPE.cmake   |  6 ------
- Source/cmake/GStreamerChecks.cmake |  8 +-------
- Source/cmake/OptionsWPE.cmake      |  4 ----
- Tools/PlatformWPE.cmake            | 13 +------------
- 5 files changed, 2 insertions(+), 33 deletions(-)
+ Source/WebKit/WebProcess/wpe/WebProcessMainWPE.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 8bb7d65f..5712bc5b 100644
---- a/CMakeLists.txt
-+++ b/CMakeLists.txt
-@@ -43,10 +43,6 @@ if (ENABLE_TOOLS)
-     add_subdirectory(Tools)
- endif ()
+diff --git a/Source/WebKit/WebProcess/wpe/WebProcessMainWPE.cpp b/Source/WebKit/WebProcess/wpe/WebProcessMainWPE.cpp
+index ff5eeeb0..ac4ee6de 100644
+--- a/Source/WebKit/WebProcess/wpe/WebProcessMainWPE.cpp
++++ b/Source/WebKit/WebProcess/wpe/WebProcessMainWPE.cpp
+@@ -50,10 +50,10 @@ public:
+         PAL::GCrypt::initialize();
+ #endif
 
--if (DEVELOPER_MODE)
--    add_subdirectory(PerformanceTests)
--endif ()
--
- # -----------------------------------------------------------------------------
- # Print the features list last, for maximum visibility.
- # -----------------------------------------------------------------------------
-diff --git a/Source/WebCore/PlatformWPE.cmake b/Source/WebCore/PlatformWPE.cmake
-index 7fc55553..79100d93 100644
---- a/Source/WebCore/PlatformWPE.cmake
-+++ b/Source/WebCore/PlatformWPE.cmake
-@@ -81,12 +81,6 @@ list(APPEND WebCore_SYSTEM_INCLUDE_DIRECTORIES
-     ${UPOWERGLIB_INCLUDE_DIRS}
- )
+-#if ENABLE(DEVELOPER_MODE)
++// #if ENABLE(DEVELOPER_MODE)
+         if (g_getenv("WEBKIT2_PAUSE_WEB_PROCESS_ON_LAUNCH"))
+             WTF::sleep(30_s);
+-#endif
++// #endif
 
--if (USE_WPE_VIDEO_PLANE_DISPLAY_DMABUF OR USE_WPEBACKEND_FDO_AUDIO_EXTENSION)
--    list(APPEND WebCore_LIBRARIES ${WPEBACKEND_FDO_LIBRARIES})
--    list(APPEND WebCore_SYSTEM_INCLUDE_DIRECTORIES ${WPE_INCLUDE_DIRS})
--    list(APPEND WebCore_SYSTEM_INCLUDE_DIRECTORIES ${WPEBACKEND_FDO_INCLUDE_DIRS})
--endif ()
--
- if (USE_OPENXR)
-     list(APPEND WebCore_LIBRARIES ${OPENXR_LIBRARIES})
-     list(APPEND WebCore_SYSTEM_INCLUDE_DIRECTORIES ${OPENXR_INCLUDE_DIRS})
-diff --git a/Source/cmake/GStreamerChecks.cmake b/Source/cmake/GStreamerChecks.cmake
-index 6d1e774e..71c4ca4e 100644
---- a/Source/cmake/GStreamerChecks.cmake
-+++ b/Source/cmake/GStreamerChecks.cmake
-@@ -1,13 +1,7 @@
- if (ENABLE_VIDEO OR ENABLE_WEB_AUDIO)
-
-     if (PORT STREQUAL "WPE")
--        find_package(WPEBackend_fdo 1.9.0)
--        if ((NOT WPEBACKEND_FDO_FOUND) OR WPEBACKEND_FDO_AUDIO_EXTENSION STREQUAL "WPEBACKEND_FDO_AUDIO_EXTENSION-NOTFOUND")
--            message(WARNING "WPEBackend-fdo audio extension not found. Disabling external audio rendering support")
--            SET_AND_EXPOSE_TO_BUILD(USE_WPEBACKEND_FDO_AUDIO_EXTENSION FALSE)
--        else ()
--            SET_AND_EXPOSE_TO_BUILD(USE_WPEBACKEND_FDO_AUDIO_EXTENSION TRUE)
--        endif ()
-+        SET_AND_EXPOSE_TO_BUILD(USE_WPEBACKEND_FDO_AUDIO_EXTENSION FALSE)
-     endif ()
-
-     SET_AND_EXPOSE_TO_BUILD(USE_GSTREAMER TRUE)
-diff --git a/Source/cmake/OptionsWPE.cmake b/Source/cmake/OptionsWPE.cmake
-index 0dc0057f..245394d0 100644
---- a/Source/cmake/OptionsWPE.cmake
-+++ b/Source/cmake/OptionsWPE.cmake
-@@ -246,10 +246,6 @@ if (ENABLE_WPE_QT_API)
-     find_package(Qt5Test REQUIRED)
- endif ()
-
--if (ENABLE_WPE_QT_API OR USE_WPE_VIDEO_PLANE_DISPLAY_DMABUF)
--    find_package(WPEBackend_fdo 1.5.0 REQUIRED)
--endif ()
--
-
- if (ENABLE_WEBXR)
-     if (NOT ENABLE_GAMEPAD)
-diff --git a/Tools/PlatformWPE.cmake b/Tools/PlatformWPE.cmake
-index 888e9113..cc583507 100644
---- a/Tools/PlatformWPE.cmake
-+++ b/Tools/PlatformWPE.cmake
-@@ -1,18 +1,7 @@
--if (DEVELOPER_MODE OR ENABLE_MINIBROWSER)
-+if (ENABLE_MINIBROWSER)
-     add_subdirectory(wpe/backends)
- endif ()
-
--if (DEVELOPER_MODE)
--    add_subdirectory(ImageDiff)
--    add_subdirectory(TestRunnerShared)
--    add_subdirectory(WebKitTestRunner)
--    add_subdirectory(flatpak)
--
--    if (ENABLE_API_TESTS)
--        add_subdirectory(TestWebKitAPI/glib)
--    endif ()
--endif ()
--
- if (ENABLE_MINIBROWSER)
-     add_subdirectory(MiniBrowser/wpe)
- endif ()
+         // Required for GStreamer initialization.
+         // FIXME: This should be probably called in other processes as well.
 --
 2.34.1
 EOF
@@ -544,7 +469,7 @@ function prepare_sources
             tar -xf $SRC_PACKAGE.tar.xz
 
             if [ "$SRC_PACKAGE" = "$WPEWEBKIT" ]; then
-                patch_webkit_enable_dev_mode_without_fdo_backend
+                patch_webkit_wait_for_wpewebprocess
                 patch_webkit_enable_websecurity
                 patch_webkit_fix_webgl_compositing
             fi
@@ -555,43 +480,39 @@ function prepare_sources
 function build_libwpe
 {
     cd $BASE_DIR/sources/$LIBWPE
-    if [ ! -d build ]; then
-        meson setup --buildtype=$MESON_BUILD_TYPE --prefix=$BASE_DIR/dist build
+    if [ ! -f build/build.ninja ]; then
+        rm -rf build
+        meson setup --buildtype=$MESON_BUILD_TYPE --prefix=$INSTALL_PREFIX build
     fi
 
     ninja -C build install
-    patchelf --set-rpath '$ORIGIN' --force-rpath $BASE_DIR/dist/lib/x86_64-linux-gnu/libwpe-1.0.so
+    patchelf --set-rpath '$ORIGIN' --force-rpath $INSTALL_PREFIX/lib/x86_64-linux-gnu/libwpe-1.0.so
 }
 
 function build_wpewebkit
 {
-    local DEV_MODE=OFF
-    if [ "$CMAKE_BUILD_TYPE" != "Release" ]; then
-        DEV_MODE=ON
-    fi
-
     cd $BASE_DIR/sources/$WPEWEBKIT
-    if [ ! -d build ]; then
+    if [ ! -f build/build.ninja ]; then
+        rm -rf build
         cmake -S. -Bbuild -GNinja -DCMAKE_EXPORT_COMPILE_COMMANDS=TRUE \
-            -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DCMAKE_INSTALL_PREFIX=$BASE_DIR/dist \
+            -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX \
             -DPORT=WPE -DENABLE_ACCESSIBILITY=OFF -DENABLE_BUBBLEWRAP_SANDBOX=OFF -DENABLE_DOCUMENTATION=OFF \
             -DENABLE_GAMEPAD=OFF -DENABLE_INTROSPECTION=OFF -DENABLE_JOURNALD_LOG=OFF \
             -DENABLE_OFFSCREEN_CANVAS=ON -DENABLE_OFFSCREEN_CANVAS_IN_WORKERS=ON \
             -DENABLE_PDFJS=OFF -DENABLE_WEBDRIVER=OFF -DUSE_SOUP2=ON -DUSE_AVIF=OFF \
-            -DDEVELOPER_MODE=$DEV_MODE -DENABLE_WPE_QT_API=OFF -DENABLE_COG=OFF -DENABLE_MINIBROWSER=OFF \
-            -DENABLE_API_TESTS=OFF
+            -DENABLE_WPE_QT_API=OFF -DENABLE_COG=OFF -DENABLE_MINIBROWSER=OFF
     fi
 
     ninja -C build install
-    patchelf --set-rpath '$ORIGIN/../..' --force-rpath $BASE_DIR/dist/lib/wpe-webkit-1.0/injected-bundle/libWPEInjectedBundle.so
-    patchelf --set-rpath '$ORIGIN/../../lib' --force-rpath $BASE_DIR/dist/libexec/wpe-webkit-1.0/WPENetworkProcess
-    patchelf --set-rpath '$ORIGIN/../../lib' --force-rpath $BASE_DIR/dist/libexec/wpe-webkit-1.0/WPEWebProcess
-    patchelf --set-rpath '$ORIGIN/x86_64-linux-gnu' --force-rpath $BASE_DIR/dist/lib/libWPEWebKit-1.0.so
+    patchelf --set-rpath '$ORIGIN/../..' --force-rpath $INSTALL_PREFIX/lib/wpe-webkit-1.0/injected-bundle/libWPEInjectedBundle.so
+    patchelf --set-rpath '$ORIGIN/../../lib' --force-rpath $INSTALL_PREFIX/libexec/wpe-webkit-1.0/WPENetworkProcess
+    patchelf --set-rpath '$ORIGIN/../../lib' --force-rpath $INSTALL_PREFIX/libexec/wpe-webkit-1.0/WPEWebProcess
+    patchelf --set-rpath '$ORIGIN/x86_64-linux-gnu' --force-rpath $INSTALL_PREFIX/lib/libWPEWebKit-1.0.so
 
     if [ "$CMAKE_BUILD_TYPE" != "Release" ]; then
-        gdb-add-index $BASE_DIR/dist/lib/libWPEWebKit-1.0.so
-        cp -fL $BASE_DIR/dist/lib/libWPEWebKit-1.0.so $BASE_DIR/dist/lib/libWPEWebKit-1.0.so.debug
-        strip --strip-debug $BASE_DIR/dist/lib/libWPEWebKit-1.0.so
+        gdb-add-index $INSTALL_PREFIX/lib/libWPEWebKit-1.0.so
+        cp -fL $INSTALL_PREFIX/lib/libWPEWebKit-1.0.so $INSTALL_PREFIX/lib/libWPEWebKit-1.0.so.debug
+        strip --strip-debug $INSTALL_PREFIX/lib/libWPEWebKit-1.0.so
     fi
 }
 
@@ -606,7 +527,7 @@ if [ ! -d $BASE_DIR ]; then
     mkdir -p $BASE_DIR
     install_build_deps
     build
-elif [ "$BUILD_DEPS" = "true" ]; then
+elif [ "$BUILD_DEPS" = "true" -o ! -d $INSTALL_PREFIX ]; then
     build
 fi
 
@@ -615,7 +536,7 @@ export WEBKIT_INSPECTOR_SERVER=127.0.0.1:8787
 export __NV_PRIME_RENDER_OFFLOAD=1
 export __GLX_VENDOR_LIBRARY_NAME=nvidia
 export __GL_SYNC_TO_VBLANK=1
-export LD_LIBRARY_PATH=$BASE_DIR/../../build/backend
+export LD_LIBRARY_PATH=$(readlink -mn $BASE_DIR/../../build/backend)
 
 cd $BASE_DIR/../..
 $SHELL
