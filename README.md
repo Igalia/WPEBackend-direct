@@ -28,8 +28,7 @@ If you are using Ubuntu Jammy (22.04 LTS), you can call directly the
 all needed environment variables set to proceed with the backend build.
 
 ```shell
-cd scripts
-./webkit
+./scripts/webkit
 ```
 
 ### On other Linux distributions
@@ -40,14 +39,13 @@ If you are using another Linux distribution, you can use the provided
 To build the container call:
 
 ```shell
-cd scripts
-docker build --force-rm --no-cache --tag webkit-dev .
+docker build --tag webkit-dev ./scripts
 ```
 
 And to launch the build environment (with an X11 server on the host):
 
 ```shell
-docker run --rm -it -e DISPLAY=$DISPLAY -v ~/.Xauthority:/root/.Xauthority -v /tmp/.X11-unix:/tmp/.X11-unix -v .:/root/code webkit-dev
+docker run -ti --network host -e DISPLAY=$DISPLAY -v ~/.Xauthority:/root/.Xauthority -v /tmp/.X11-unix:/tmp/.X11-unix -v .:/root/code webkit-dev
 ```
 
 You will need to call `xhost +` on the host to authorize the docker container

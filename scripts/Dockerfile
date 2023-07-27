@@ -18,10 +18,13 @@ RUN apt-get update -qq && \
         flex libpng-dev libxt-dev libenchant-2-dev libsecret-1-dev libgl-dev \
         libgles-dev libjavascriptcoregtk-4.1-0 gstreamer1.0-plugins-base \
         gstreamer1.0-plugins-good gstreamer1.0-gl libgl1-mesa-dri patchelf \
-        unifdef ruby-dev libgstreamer-plugins-bad1.0-dev && \
+        unifdef ruby-dev libgstreamer-plugins-bad1.0-dev \
+        gstreamer1.0-plugins-bad && \
     pip3 install meson ninja
 
 COPY webkit /root/
+COPY wpewebkit-patches /root/wpewebkit-patches
+
 WORKDIR /root
 RUN ./webkit --build
 
